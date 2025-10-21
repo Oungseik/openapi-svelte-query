@@ -1,11 +1,13 @@
 import {
-  type Accessor,
   type CreateInfiniteQueryOptions,
   type CreateInfiniteQueryResult,
   type CreateMutationOptions,
   type CreateMutationResult,
   type CreateQueryOptions,
   type CreateQueryResult,
+  createInfiniteQuery,
+  createMutation,
+  createQuery,
   type FetchQueryOptions,
   type GetNextPageParamFunction,
   type InfiniteData,
@@ -13,9 +15,6 @@ import {
   type QueryClient,
   type QueryFunctionContext,
   type SkipToken,
-  createInfiniteQuery,
-  createMutation,
-  createQuery,
 } from "@tanstack/svelte-query";
 import type {
   ClientMethod,
@@ -236,12 +235,23 @@ export default function createClient<Paths extends {}, Media extends MediaType =
   return {
     queryOptions,
     createQuery: (method, path, ...[init, options, queryClient]) =>
-      createQuery(queryOptions(method, path, init as InitWithUnknowns<typeof init>, options), queryClient),
+      createQuery(
+        () => ({
+          queryKey: (init === undefined ? ([method, path] as const) : ([method, path, init] as const)) as QueryKey<
+            Paths,
+            typeof method,
+            typeof path
+          >,
+          queryFn,
+          ...options,
+        }),
+        queryClient ? () => queryClient : undefined,
+      ),
     createInfiniteQuery: (method, path, init, options, queryClient) => {
       const { pageParamName = "cursor", ...restOptions } = options;
       const { queryKey } = queryOptions(method, path, init);
       return createInfiniteQuery(
-        {
+        () => ({
           queryKey,
           queryFn: async ({ queryKey: [method, path, init], pageParam = 0, signal }) => {
             const mth = method.toUpperCase() as Uppercase<typeof method>;
@@ -265,13 +275,13 @@ export default function createClient<Paths extends {}, Media extends MediaType =
             return data;
           },
           ...restOptions,
-        },
-        queryClient,
+        }),
+        queryClient ? () => queryClient : undefined,
       );
     },
     createMutation: (method, path, options, queryClient) =>
-      createMutation(() => (
-        {
+      createMutation(
+        () => ({
           mutationKey: [method, path],
           mutationFn: async (init) => {
             const mth = method.toUpperCase() as Uppercase<typeof method>;
