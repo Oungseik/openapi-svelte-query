@@ -1,4 +1,5 @@
 import {
+  type Accessor,
   type CreateInfiniteQueryOptions,
   type CreateInfiniteQueryResult,
   type CreateMutationOptions,
@@ -111,7 +112,6 @@ export type CreateInfiniteQueryMethod<Paths extends Record<string, Record<HttpMe
       Response["data"],
       Response["error"],
       InfiniteData<Response["data"]>,
-      Response["data"],
       QueryKey<Paths, Method, Path>,
       unknown
     >,
@@ -270,7 +270,7 @@ export default function createClient<Paths extends {}, Media extends MediaType =
       );
     },
     createMutation: (method, path, options, queryClient) =>
-      createMutation(
+      createMutation(() => (
         {
           mutationKey: [method, path],
           mutationFn: async (init) => {
@@ -284,8 +284,8 @@ export default function createClient<Paths extends {}, Media extends MediaType =
             return data as Exclude<typeof data, undefined>;
           },
           ...options,
-        },
-        queryClient,
+        }),
+        queryClient ? () => queryClient : undefined,
       ),
     prefetchQuery: (queryClient, method, path, ...[init, options]) => {
       return queryClient.prefetchQuery(queryOptions(method, path, init as InitWithUnknowns<typeof init>, options));
